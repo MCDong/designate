@@ -13,9 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import urllib
-
-from functionaltests.api.v2.security_utils import Fuzzer
+from functionaltests.api.v2.security_utils import FuzzFactory
 
 from tempest_lib import exceptions
 from functionaltests.common import utils
@@ -23,10 +21,11 @@ from functionaltests.common import utils
 from functionaltests.common import datagen
 from functionaltests.api.v2.base import DesignateV2Test
 from functionaltests.api.v2.clients.pool_client import PoolClient
-# from functionaltests.api.v2.clients.zone_client import ZoneClient
+from six import string_types
+from six.moves.urllib.parse import quote_plus
 
 
-fuzzer = Fuzzer()
+fuzzer = FuzzFactory()
 
 
 @utils.parameterized_class
@@ -42,25 +41,23 @@ class PoolFuzzTest(DesignateV2Test):
         self.assertEqual(resp.status, 201)
         return resp, model
 
-    @utils.parameterized(fuzzer.get_datasets(
-        ['content_types', 'junk', 'sqli', 'xss', 'rce']
-    ))
-    def test_create_pool_fuzz_content_type_header(self, fuzz_type, payload):
-        test_model = datagen.random_pool_data()
-        headers = {"Content-Type": payload.encode('utf-8')}
-        fuzzer.verify_exception(
-            self.client.post_pool, exceptions.InvalidContentType,
-            fuzz_type, test_model, headers=headers)
+    header_params = ['accept', 'content-type']
 
-    # @utils.parameterized(fuzzer.get_datasets(
-    #     ['content_types', 'junk', 'sqli', 'xss', 'rce']
-    # ))
-    # def test_create_pool_fuzz_accept_header(self, fuzz_type, payload):
-    #     test_model = datagen.random_pool_data()
-    #     headers = {"accept": payload.encode('utf-8')}
-    #     fuzzer.verify_exception(
-    #         self.client.post_pool, exceptions.InvalidContentType,
-    #         fuzz_type, test_model, headers=headers)
+    @utils.parameterized(fuzzer.get_param_datasets(
+        header_params, ['content_types', 'junk', 'sqli', 'xss', 'rce']
+    ))
+    def test_fuzzed_pool_header(self, parameter, fuzz_type, payload):
+        model = datagen.random_pool_data()
+        headers = {
+            'content-type': 'application/json',
+            'accept': ''
+        }
+        headers[parameter] = payload.encode('utf-8')
+        result, exception = fuzzer.verify_exception(
+            self.client.post_pool, fuzz_type, model, headers=headers)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     pool_params = [
         'name', 'description', 'tenant_id', 'provisioner', 'attributes'
@@ -70,11 +67,15 @@ class PoolFuzzTest(DesignateV2Test):
         pool_params, ['junk', 'sqli', 'xss', 'rce']
     ))
     def test_create_pool_fuzz_param(self, parameter, fuzz_type, payload):
-        test_model = datagen.random_pool_data()
-        test_model.__dict__[parameter] = payload
-        fuzzer.verify_exception(
-            self.client.post_pool, exceptions.BadRequest,
-            fuzz_type, test_model)
+        if isinstance(payload, string_types):
+            payload = quote_plus(payload.encode('utf-8'))
+        model = datagen.random_pool_data()
+        model.__dict__[parameter] = payload
+        result, exception = fuzzer.verify_exception(
+            self.client.post_pool, fuzz_type, model)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
         ['junk', 'sqli', 'xss', 'rce']
@@ -84,75 +85,73 @@ class PoolFuzzTest(DesignateV2Test):
         test_model.ns_records = [{"hostname": payload,
                                  "priority": x["priority"]}
                                  for x in test_model.ns_records]
-        fuzzer.verify_exception(
-            self.client.post_pool, exceptions.BadRequest,
-            fuzz_type, test_model)
+        result, exception = fuzzer.verify_exception(
+            self.client.post_pool, fuzz_type, test_model)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
-        ['numbers', 'junk', 'sqli', 'xss', 'rce']
+        ['number', 'junk', 'sqli', 'xss', 'rce']
     ))
     def test_create_pool_fuzz_data_priority(self, fuzz_type, payload):
         test_model = datagen.random_pool_data()
         test_model.ns_records = [{"hostname": x["hostname"],
                                  "priority": payload}
                                  for x in test_model.ns_records]
-        fuzzer.verify_exception(
-            self.client.post_pool, exceptions.BadRequest,
-            fuzz_type, test_model)
-
-    @utils.parameterized(fuzzer.get_datasets(
-        ['content_types', 'junk', 'sqli', 'xss', 'rce']
-    ))
-    def test_update_pool_fuzz_content_type_header(self, fuzz_type, payload):
-        resp, test_model = self._create_pool(datagen.random_pool_data())
-        headers = {"Content-Type": payload.encode('utf-8')}
-        fuzzer.verify_exception(
-            self.client.patch_pool, exceptions.InvalidContentType,
-            fuzz_type, test_model.id, test_model, headers=headers)
-
-    # @utils.parameterized(fuzzer.get_datasets(
-    #     ['content_types', 'junk', 'sqli', 'xss', 'rce']
-    # ))
-    # def test_update_pool_fuzz_accept_header(self, fuzz_type, payload):
-    #     test_model = datagen.random_pool_data()
-    #     headers = {"accept": payload.encode('utf-8')}
-    #     fuzzer.verify_exception(
-    #         self.client.patch_pool, exceptions.InvalidContentType,
-    #         fuzz_type, test_model, headers=headers)
+        result, exception = fuzzer.verify_exception(
+            self.client.post_pool, fuzz_type, test_model)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_param_datasets(
         pool_params, ['junk', 'sqli', 'xss', 'rce']
     ))
     def test_update_pool_fuzz_param(self, parameter, fuzz_type, payload):
-        resp, test_model = self._create_pool(datagen.random_pool_data())
-        test_model.__dict__[parameter] = payload
-        fuzzer.verify_exception(
-            self.client.patch_pool, exceptions.BadRequest,
-            fuzz_type, test_model.id, test_model)
+        if isinstance(payload, string_types):
+            payload = quote_plus(payload.encode('utf-8'))
+        resp, old_model = self._create_pool(datagen.random_pool_data())
+        patch_model = old_model
+        patch_model.__dict__[parameter] = payload
+        result, exception = fuzzer.verify_exception(
+            self.client.patch_pool, fuzz_type, old_model.id, patch_model)
+        self.assertTrue(result)
+        if exception:
+            try:
+                self.assertIsInstance(exception, exceptions.NotFound)
+            except:
+                self.assertIsInstance(exception, exceptions.BadRequest)
 
     @utils.parameterized(fuzzer.get_datasets(
         ['junk', 'sqli', 'xss', 'rce']
     ))
     def test_update_pool_fuzz_data_hostname(self, fuzz_type, payload):
-        resp, test_model = self._create_pool(datagen.random_pool_data())
-        test_model.ns_records = [{"hostname": payload,
-                                 "priority": x["priority"]}
-                                 for x in test_model.ns_records]
-        fuzzer.verify_exception(
-            self.client.patch_pool, exceptions.BadRequest,
-            fuzz_type, test_model.id, test_model)
+        resp, old_model = self._create_pool(datagen.random_pool_data())
+        patch_model = old_model
+        patch_model.ns_records = [{"hostname": payload,
+                                  "priority": x["priority"]}
+                                  for x in patch_model.ns_records]
+        result, exception = fuzzer.verify_exception(
+            self.client.patch_pool, fuzz_type, old_model.id, patch_model)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
-        ['numbers', 'junk', 'sqli', 'xss', 'rce']
+        ['number', 'junk', 'sqli', 'xss', 'rce']
     ))
     def test_update_pool_fuzz_data_priority(self, fuzz_type, payload):
-        resp, test_model = self._create_pool(datagen.random_pool_data())
-        test_model.ns_records = [{"hostname": x["priority"],
-                                 "priority": payload}
-                                 for x in test_model.ns_records]
-        fuzzer.verify_exception(
-            self.client.patch_pool, exceptions.BadRequest,
-            fuzz_type, test_model.id, test_model)
+        resp, old_model = self._create_pool(datagen.random_pool_data())
+        patch_model = old_model
+        patch_model.ns_records = [{"hostname": x["priority"],
+                                  "priority": payload}
+                                  for x in patch_model.ns_records]
+        result, exception = fuzzer.verify_exception(
+            self.client.patch_pool, fuzz_type, old_model.id, patch_model)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
         ['content_types', 'junk', 'sqli', 'xss', 'rce']
@@ -160,20 +159,27 @@ class PoolFuzzTest(DesignateV2Test):
     def test_get_pool_fuzz_accept_header(self, fuzz_type, payload):
         resp, test_model = self._create_pool(datagen.random_pool_data())
         headers = {"Accept": payload}
-        fuzzer.verify_exception(
-            self.client.get_pool, exceptions.InvalidContentType,
-            fuzz_type, test_model.id, headers=headers)
+        result, exception = fuzzer.verify_exception(
+            self.client.get_pool, fuzz_type, test_model.id, headers=headers)
+        self.assertTrue(result)
+        if exception:
+            self.assertNotIn(exception.resp.status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
-        ['content_types', 'junk', 'sqli', 'xss', 'rce']
+        ['number', 'junk', 'sqli', 'xss', 'rce']
     ))
     def test_get_pool_fuzz_uuid(self, fuzz_type, payload):
-        if type(payload) is str or type(payload) is unicode:
-            payload = urllib.quote_plus(payload.encode('utf-8'))
+        if isinstance(payload, string_types):
+            payload = quote_plus(payload.encode('utf-8'))
         resp, test_model = self._create_pool(datagen.random_pool_data())
-        fuzzer.verify_exception(
-            self.client.get_pool, exceptions.NotFound,
-            fuzz_type, payload)
+        result, exception = fuzzer.verify_exception(
+            self.client.get_pool, fuzz_type, payload)
+        self.assertTrue(result)
+        if exception:
+            try:
+                self.assertIsInstance(exception, exceptions.NotFound)
+            except:
+                self.assertIsInstance(exception, exceptions.BadRequest)
 
     filters = [
         'limit', 'marker', 'sort_dir', 'type', 'name', 'ttl', 'data',
@@ -185,6 +191,10 @@ class PoolFuzzTest(DesignateV2Test):
     ))
     def test_list_pools_fuzzed_filter(self, parameter,
                                       fuzz_type, payload):
-        fuzzer.verify_exception(
-            self.client.list_pools, exceptions.BadRequest, fuzz_type,
-            filters={parameter: payload})
+        if isinstance(payload, string_types):
+            payload = quote_plus(payload.encode('utf-8'))
+        result, exception = fuzzer.verify_exception(
+            self.client.list_pools, fuzz_type, filters={parameter: payload})
+        self.assertTrue(result)
+        if exception:
+            self.assertIsInstance(exception, exceptions.BadRequest)
