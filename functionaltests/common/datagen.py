@@ -151,7 +151,8 @@ def random_mx_recordset(zone_name, pref=None, host=None, **kwargs):
 
 def random_blacklist_data():
     data = {
-        "pattern": random_string()
+        "pattern": random_string(),
+        "description": random_string()
     }
     return BlacklistModel.from_dict(data)
 

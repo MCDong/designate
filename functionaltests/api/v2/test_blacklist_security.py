@@ -20,6 +20,7 @@ from functionaltests.common import datagen
 
 from functionaltests.api.v2.base import DesignateV2Test
 from functionaltests.api.v2.clients.blacklist_client import BlacklistClient
+from functionaltests.api.v2.clients.zone_client import ZoneClient
 from six import string_types
 from six.moves.urllib.parse import quote_plus
 
@@ -30,7 +31,7 @@ fuzzer = FuzzFactory()
 class BlacklistFuzzTest(DesignateV2Test):
     def setUp(self):
         super(BlacklistFuzzTest, self).setUp()
-        self.increase_quotas(user='admin')
+        # self.increase_quotas(user='admin')
         self.client = BlacklistClient.as_user('admin')
 
     def _create_blacklist(self, blacklist_model, user='admin'):
@@ -153,6 +154,7 @@ class BlacklistFuzzTest(DesignateV2Test):
     #     self.client.post_blacklist(blacklist_model)
 
     #     zone_model = datagen.random_zone_data()
-    #     zone_model.name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!"
+    #     zone_model.name =\
+    #         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com."
     #     resp, model = ZoneClient.as_user('default').post_zone(zone_model)
     #     ZoneClient.as_user('default').wait_for_zone(model.id)
