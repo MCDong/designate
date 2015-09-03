@@ -31,7 +31,7 @@ fuzzer = FuzzFactory()
 class BlacklistFuzzTest(DesignateV2Test):
     def setUp(self):
         super(BlacklistFuzzTest, self).setUp()
-        # self.increase_quotas(user='admin')
+        self.increase_quotas(user='admin')
         self.client = BlacklistClient.as_user('admin')
 
     def _create_blacklist(self, blacklist_model, user='admin'):
