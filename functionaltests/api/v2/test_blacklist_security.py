@@ -13,14 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from tempest_lib import exceptions
 from functionaltests.api.v2.security_utils import FuzzFactory
 from functionaltests.common import utils
 from functionaltests.common import datagen
 
 from functionaltests.api.v2.base import DesignateV2Test
 from functionaltests.api.v2.clients.blacklist_client import BlacklistClient
-from functionaltests.api.v2.clients.zone_client import ZoneClient
+# from functionaltests.api.v2.clients.zone_client import ZoneClient
 from six import string_types
 from six.moves.urllib.parse import quote_plus
 
@@ -52,11 +51,10 @@ class BlacklistFuzzTest(DesignateV2Test):
             'accept': ''
         }
         headers[parameter] = payload.encode('utf-8')
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.post_blacklist, fuzz_type, model, headers=headers)
-        self.assertTrue(result)
-        if exception:
-            self.assertNotIn(exception.resp.status, range(500, 600))
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     blacklist_params = [
         'pattern', 'description', 'created_at', 'updated_at', 'id', 'links'
@@ -70,11 +68,10 @@ class BlacklistFuzzTest(DesignateV2Test):
             payload = quote_plus(payload.encode('utf-8'))
         model = datagen.random_blacklist_data()
         model.__dict__[parameter] = payload
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.post_blacklist, fuzz_type, model)
-        self.assertTrue(result)
-        if exception:
-            self.assertNotIn(exception.resp.status, range(500, 600))
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_param_datasets(
         blacklist_params, ['huge', 'date', 'junk', 'sqli', 'xss', 'rce']
@@ -86,14 +83,10 @@ class BlacklistFuzzTest(DesignateV2Test):
             datagen.random_blacklist_data())
         patch_model = old_model
         patch_model.__dict__[parameter] = payload
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.patch_blacklist, fuzz_type, old_model.id, patch_model)
-        self.assertTrue(result)
-        if exception:
-            try:
-                self.assertIsInstance(exception, exceptions.NotFound)
-            except:
-                self.assertIsInstance(exception, exceptions.BadRequest)
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
         ['number', 'junk', 'sqli', 'xss', 'rce']
@@ -103,14 +96,10 @@ class BlacklistFuzzTest(DesignateV2Test):
             payload = quote_plus(payload.encode('utf-8'))
         resp, test_model = self._create_blacklist(
             datagen.random_blacklist_data())
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.get_blacklist, fuzz_type, payload)
-        self.assertTrue(result)
-        if exception:
-            try:
-                self.assertIsInstance(exception, exceptions.NotFound)
-            except:
-                self.assertIsInstance(exception, exceptions.BadRequest)
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     filters = [
         'limit', 'marker', 'sort_dir', 'type', 'name', 'ttl', 'data',
@@ -124,12 +113,11 @@ class BlacklistFuzzTest(DesignateV2Test):
                                            fuzz_type, payload):
         if isinstance(payload, string_types):
             payload = quote_plus(payload.encode('utf-8'))
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.list_blacklists, fuzz_type,
             filters={parameter: payload})
-        self.assertTrue(result)
-        if exception:
-            self.assertIsInstance(exception, exceptions.BadRequest)
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     @utils.parameterized(fuzzer.get_datasets(
         ['number', 'junk', 'sqli', 'xss', 'rce']
@@ -139,14 +127,10 @@ class BlacklistFuzzTest(DesignateV2Test):
             payload = quote_plus(payload.encode('utf-8'))
         resp, test_model = self._create_blacklist(
             datagen.random_blacklist_data())
-        result, exception = fuzzer.verify_exception(
+        result = fuzzer.verify_tempest_exception(
             self.client.delete_blacklist, fuzz_type, payload)
-        self.assertTrue(result)
-        if exception:
-            try:
-                self.assertIsInstance(exception, exceptions.NotFound)
-            except:
-                self.assertIsInstance(exception, exceptions.BadRequest)
+        self.assertTrue(result['status'])
+        self.assertNotIn(result['resp'].status, range(500, 600))
 
     # def test_blacklist_regex_ddos(self):
     #     blacklist_model = datagen.random_blacklist_data()
